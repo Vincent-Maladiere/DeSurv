@@ -205,15 +205,16 @@ def evaluate(
             print("Computing accuracy in time")
 
         truncation_quantiles = [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
-        times = np.quantile(time_grid, truncation_quantiles)
+        taus = np.quantile(time_grid, truncation_quantiles)
         accuracy = []
         
          # TODO: put it into a function in hazardous._metrics
-        for time_idx in range(len(times)):
-            y_pred_at_t = y_pred[:, :, time_idx]
-            mask = (y_test["event"] == 0) & (y_test["duration"] < times[time_idx])
+        for tau in taus:
+            tau_idx = np.searchsorted(time_grid, tau)
+            y_pred_at_t = y_pred[:, :, tau_idx]
+            mask = (y_test["event"] == 0) & (y_test["duration"] < tau)
             y_pred_class = y_pred_at_t[:, ~mask].argmax(axis=0)
-            y_test_class = y_test["event"] * (y_test["duration"] < times[time_idx])
+            y_test_class = y_test["event"] * (y_test["duration"] < tau)
             y_test_class = y_test_class.loc[~mask]
             accuracy.append(
                 round(
