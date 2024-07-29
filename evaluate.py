@@ -41,6 +41,8 @@ WEIBULL_PARAMS = {
 SEEDS = range(5)
 N_STEPS_TIME_GRID = 20
 MODEL_NAME = "DeSurv"
+N_EPOCHS = 200
+MAX_WAIT = 10
 
 
 def run_evaluation(dataset_name):
@@ -94,6 +96,8 @@ def evaluate(
     y_pred, predict_time = get_y_pred(model, time_grid, bunch)
 
     print(f"{time_grid=}")
+    print(f"{y_pred.shape=}")
+    print(f"{y_pred.mean(axis=1).mean(axis=1)=}")
 
     scores["time_grid"] = time_grid.round(4).tolist()
     scores["y_pred"] = y_pred.round(4).tolist()
@@ -115,8 +119,8 @@ def evaluate(
                 y_test,
                 y_pred[event_id],
                 time_grid,
-                shape_censoring=bunch.shape_censoring,
-                scale_censoring=bunch.scale_censoring,
+                shape_censoring=bunch.shape_censoring.loc[y_test.index],
+                scale_censoring=bunch.scale_censoring.loc[y_test.index],
                 event_of_interest=event_id,
             )
             brier_scores = brier_score_incidence_oracle(
@@ -124,8 +128,8 @@ def evaluate(
                 y_test,
                 y_pred[event_id],
                 time_grid,
-                shape_censoring=bunch.shape_censoring,
-                scale_censoring=bunch.scale_censoring,
+                shape_censoring=bunch.shape_censoring.loc[y_test.index],
+                scale_censoring=bunch.scale_censoring.loc[y_test.index],
                 event_of_interest=event_id,  
             )
         else:
@@ -267,8 +271,8 @@ def get_dataset(dataset_name, random_state):
     print(f"{X_train_.shape=}, {X_val.shape=}")
 
     enc = SurvFeatureEncoder(
-        categorical_columns=CATEGORICAL_COLUMN_NAMES,
-        numeric_columns=NUMERIC_COLUMN_NAMES,
+        categorical_columns=bunch.categorical_columns,
+        numeric_columns=bunch.numeric_columns,
     )
     X_train_ = enc.fit_transform(X_train_)
     X_val = enc.transform(X_val)
@@ -314,11 +318,20 @@ def load_dataset(dataset_name, random_state):
         )
         X = X.dropna()
         y = y.iloc[X.index]
-        bunch = {"X": X, "y": y}
+        bunch = {
+            "X": X,
+            "y": y,
+            "numeric_columns": NUMERIC_COLUMN_NAMES,
+            "categorical_columns": CATEGORICAL_COLUMN_NAMES,
+        }
 
     elif dataset_name == "weibull":
         dataset_params.update(WEIBULL_PARAMS)
         bunch = make_synthetic_competing_weibull(**dataset_params)
+        bunch.update({
+            "numeric_columns": bunch.X.columns,
+            "categorical_columns": [],
+        })
     else:
         raise ValueError(dataset_name)
 
@@ -341,16 +354,15 @@ def get_dataloader(X, duration, event, batch_size=32):
 def get_model(bunch, train=False):
     
     model = init_model(bunch["n_features"])
-    
     time_to_fit = None
     if train:
         tic = time()
         model.optimize(
             bunch["dataloader_train"],
-            n_epochs=200,
+            n_epochs=N_EPOCHS,
             logging_freq=1,
             data_loader_val=bunch["dataloader_val"],
-            max_wait=20,
+            max_wait=MAX_WAIT,
         )
         torch.save(model.state_dict(), "tst_model")
         time_to_fit = time() - tic
@@ -417,5 +429,5 @@ def make_recarray(y):
 # %%
 
 if __name__ == "__main__":
-    run_evaluation("seer")
+    run_evaluation("weibull")
 # %%
