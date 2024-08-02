@@ -41,8 +41,8 @@ WEIBULL_PARAMS = {
 SEEDS = range(5)
 N_STEPS_TIME_GRID = 20
 MODEL_NAME = "DeSurv"
-N_EPOCHS = 200
-MAX_WAIT = 10
+N_EPOCHS = 1000
+MAX_WAIT = 20
 
 
 def run_evaluation(dataset_name):
@@ -272,8 +272,8 @@ def get_dataset(dataset_name, random_state):
     print(f"{X_train_.shape=}, {X_val.shape=}")
 
     enc = SurvFeatureEncoder(
-        categorical_columns=bunch.categorical_columns,
-        numeric_columns=bunch.numeric_columns,
+        categorical_columns=bunch["categorical_columns"],
+        numeric_columns=bunch["numeric_columns"],
     )
     X_train_ = enc.fit_transform(X_train_)
     X_val = enc.transform(X_val)
@@ -377,8 +377,8 @@ def get_model(bunch, train=False):
     return model, time_to_fit
 
 
-def init_model(n_features, lr=1e-3, hidden_dim=32):
-    return ODESurvMultiple(lr, n_features, hidden_dim, num_risks=3)
+def init_model(n_features, lr=1e-3, hidden_dim=32, num_risks=3):
+    return ODESurvMultiple(lr, n_features, hidden_dim, num_risks=num_risks)
 
 
 def get_y_pred(model, time_grid, bunch):
@@ -430,5 +430,5 @@ def make_recarray(y):
 # %%
 
 if __name__ == "__main__":
-    run_evaluation("weibull")
+    run_evaluation("seer")
 # %%
